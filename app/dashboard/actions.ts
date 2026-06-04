@@ -3,7 +3,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { z } from 'zod'
+
+export async function setViewPreference(view: 'list' | 'grid') {
+  const cookieStore = await cookies()
+  cookieStore.set('linkstash_view', view, { path: '/', maxAge: 60 * 60 * 24 * 365 })
+}
 
 export async function signOut() {
   const supabase = await createClient()

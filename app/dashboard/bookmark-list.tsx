@@ -4,9 +4,11 @@ import { BookmarkCard } from './bookmark-card'
 export function BookmarkList({
   bookmarks,
   activeTag,
+  view = 'list',
 }: {
   bookmarks: BookmarkWithTags[]
   activeTag?: string
+  view?: 'list' | 'grid'
 }) {
   if (bookmarks.length === 0) {
     return (
@@ -19,9 +21,9 @@ export function BookmarkList({
   }
 
   return (
-    <ul className="space-y-2">
+    <ul className={view === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3' : 'space-y-2'}>
       {bookmarks.map((bookmark) => (
-        <BookmarkCard key={bookmark.id} bookmark={bookmark} />
+        <BookmarkCard key={bookmark.id} bookmark={bookmark} view={view} />
       ))}
     </ul>
   )

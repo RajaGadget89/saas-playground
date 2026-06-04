@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
+import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { Button } from '@/components/ui/button'
 import { signOut } from './actions'
@@ -7,6 +8,7 @@ import { AddLinkForm } from './add-link-form'
 import { BookmarkList } from './bookmark-list'
 import { TagFilterBar } from './tag-filter-bar'
 import { SearchBar } from './search-bar'
+import { ViewToggle } from './view-toggle'
 import type { BookmarkWithTags } from './types'
 
 export default async function DashboardPage({
@@ -22,6 +24,8 @@ export default async function DashboardPage({
   if (!user) redirect('/login')
 
   const { tag: activeTag, q } = await searchParams
+  const cookieStore = await cookies()
+  const view = cookieStore.get('linkstash_view')?.value === 'grid' ? 'grid' : 'list'
 
   const { data } = await supabase
     .from('bookmarks')
@@ -57,17 +61,20 @@ export default async function DashboardPage({
 
   return (
     <main className="flex flex-col flex-1 px-4 py-8">
-      <div className="mx-auto w-full max-w-2xl space-y-6">
+      <div className={`mx-auto w-full space-y-6 ${view === 'grid' ? 'max-w-5xl' : 'max-w-2xl'}`}>
         <header className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold tracking-tight">My Bookmarks</h1>
             <p className="text-xs text-muted-foreground">{user.email}</p>
           </div>
-          <form action={signOut}>
-            <Button variant="outline" size="sm" type="submit">
-              Sign out
-            </Button>
-          </form>
+          <div className="flex items-center gap-2">
+            <ViewToggle view={view} />
+            <form action={signOut}>
+              <Button variant="outline" size="sm" type="submit">
+                Sign out
+              </Button>
+            </form>
+          </div>
         </header>
 
         <AddLinkForm />
@@ -78,7 +85,7 @@ export default async function DashboardPage({
 
         {allTags.length > 0 && <TagFilterBar tags={allTags} activeTag={activeTag} q={q} />}
 
-        <BookmarkList bookmarks={filtered} activeTag={activeTag} />
+        <BookmarkList bookmarks={filtered} activeTag={activeTag} view={view} />
       </div>
     </main>
   )
