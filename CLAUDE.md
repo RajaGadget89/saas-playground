@@ -33,6 +33,9 @@ Single-user per account — every user sees only their own data.
 - Use `gen_random_uuid()` for primary keys, `timestamptz` for time columns.
 - Foreign keys to `bookmarks`/`tags` use `on delete cascade` where appropriate.
 
+## Design
+- กฎดีไซน์ทั้งหมดอยู่ใน BRAND.md — อ่านก่อนทำงาน UI ทุกครั้ง
+
 ## Commands
 - `npm run dev` — local dev server
 - `npm run build` — production build (must pass — fails on type errors)
