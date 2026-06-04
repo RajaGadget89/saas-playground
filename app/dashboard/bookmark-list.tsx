@@ -1,13 +1,19 @@
-import type { Tables } from '@/lib/supabase/types'
+import type { BookmarkWithTags } from './types'
 import { BookmarkCard } from './bookmark-card'
 
-type Bookmark = Tables<'bookmarks'>
-
-export function BookmarkList({ bookmarks }: { bookmarks: Bookmark[] }) {
+export function BookmarkList({
+  bookmarks,
+  activeTag,
+}: {
+  bookmarks: BookmarkWithTags[]
+  activeTag?: string
+}) {
   if (bookmarks.length === 0) {
     return (
       <p className="text-sm text-muted-foreground py-8 text-center">
-        No bookmarks yet. Add your first link above.
+        {activeTag
+          ? `No bookmarks tagged "${activeTag}".`
+          : 'No bookmarks yet. Add your first link above.'}
       </p>
     )
   }

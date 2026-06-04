@@ -4,8 +4,14 @@ import { Button } from '@/components/ui/button'
 import { signOut } from './actions'
 import { AddLinkForm } from './add-link-form'
 import { BookmarkList } from './bookmark-list'
+import { TagFilterBar } from './tag-filter-bar'
+import type { BookmarkWithTags } from './types'
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tag?: string }>
+}) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -13,10 +19,27 @@ export default async function DashboardPage() {
 
   if (!user) redirect('/login')
 
-  const { data: bookmarks } = await supabase
+  const { tag: activeTag } = await searchParams
+
+  const { data } = await supabase
     .from('bookmarks')
-    .select('*')
+    .select('*, bookmark_tags(tags(id, name))')
     .order('created_at', { ascending: false })
+
+  const all = (data ?? []) as unknown as BookmarkWithTags[]
+
+  const filtered = activeTag
+    ? all.filter((b) => b.bookmark_tags.some((bt) => bt.tags?.name === activeTag))
+    : all
+
+  const allTags = Array.from(
+    new Map(
+      all
+        .flatMap((b) => b.bookmark_tags.map((bt) => bt.tags))
+        .filter((t): t is { id: string; name: string } => t !== null)
+        .map((t) => [t.id, t])
+    ).values()
+  ).sort((a, b) => a.name.localeCompare(b.name))
 
   return (
     <main className="flex flex-col flex-1 px-4 py-8">
@@ -35,7 +58,9 @@ export default async function DashboardPage() {
 
         <AddLinkForm />
 
-        <BookmarkList bookmarks={bookmarks ?? []} />
+        {allTags.length > 0 && <TagFilterBar tags={allTags} activeTag={activeTag} />}
+
+        <BookmarkList bookmarks={filtered} activeTag={activeTag} />
       </div>
     </main>
   )

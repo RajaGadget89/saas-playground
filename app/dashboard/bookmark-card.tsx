@@ -3,18 +3,26 @@
 import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import type { Tables } from '@/lib/supabase/types'
-import { updateBookmark, deleteBookmark } from './actions'
+import type { BookmarkWithTags, Tag } from './types'
+import { updateBookmark, deleteBookmark, addTagToBookmark, removeTagFromBookmark } from './actions'
 
-type Bookmark = Tables<'bookmarks'>
 type Mode = 'view' | 'edit' | 'confirm-delete'
 
-export function BookmarkCard({ bookmark }: { bookmark: Bookmark }) {
+export function BookmarkCard({ bookmark }: { bookmark: BookmarkWithTags }) {
   const [mode, setMode] = useState<Mode>('view')
   const [title, setTitle] = useState(bookmark.title ?? '')
   const [description, setDescription] = useState(bookmark.description ?? '')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  const [addingTag, setAddingTag] = useState(false)
+  const [tagInput, setTagInput] = useState('')
+  const [tagError, setTagError] = useState<string | null>(null)
+  const [isTagPending, startTagTransition] = useTransition()
+
+  const tags = bookmark.bookmark_tags
+    .map((bt) => bt.tags)
+    .filter((t): t is Tag => t !== null)
 
   let hostname = bookmark.url
   try {
@@ -57,19 +65,54 @@ export function BookmarkCard({ bookmark }: { bookmark: Bookmark }) {
     })
   }
 
+  function handleAddTag() {
+    if (!tagInput.trim()) {
+      setAddingTag(false)
+      return
+    }
+    setTagError(null)
+    startTagTransition(async () => {
+      const result = await addTagToBookmark({
+        bookmarkId: bookmark.id,
+        tagName: tagInput.trim(),
+      })
+      if ('error' in result) {
+        setTagError(result.error ?? null)
+        return
+      }
+      setTagInput('')
+      setAddingTag(false)
+    })
+  }
+
+  function handleRemoveTag(tagId: string) {
+    setTagError(null)
+    startTagTransition(async () => {
+      const result = await removeTagFromBookmark({
+        bookmarkId: bookmark.id,
+        tagId,
+      })
+      if ('error' in result) {
+        setTagError(result.error ?? null)
+      }
+    })
+  }
+
+  const favicon = bookmark.favicon_url ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={bookmark.favicon_url}
+      alt=""
+      width={16}
+      height={16}
+      className="mt-0.5 shrink-0 object-contain"
+    />
+  ) : null
+
   if (mode === 'edit') {
     return (
       <li className="flex gap-3 rounded-lg border border-border p-3">
-        {bookmark.favicon_url && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={bookmark.favicon_url}
-            alt=""
-            width={16}
-            height={16}
-            className="mt-0.5 shrink-0 object-contain"
-          />
-        )}
+        {favicon}
         <div className="min-w-0 flex-1 space-y-2">
           <Input
             type="text"
@@ -109,16 +152,7 @@ export function BookmarkCard({ bookmark }: { bookmark: Bookmark }) {
   if (mode === 'confirm-delete') {
     return (
       <li className="flex gap-3 rounded-lg border border-border p-3">
-        {bookmark.favicon_url && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={bookmark.favicon_url}
-            alt=""
-            width={16}
-            height={16}
-            className="mt-0.5 shrink-0 object-contain"
-          />
-        )}
+        {favicon}
         <div className="min-w-0 flex-1 space-y-2">
           <p className="truncate text-sm font-medium">{bookmark.title || bookmark.url}</p>
           <p className="truncate text-xs text-muted-foreground">{hostname}</p>
@@ -149,16 +183,7 @@ export function BookmarkCard({ bookmark }: { bookmark: Bookmark }) {
 
   return (
     <li className="flex gap-3 rounded-lg border border-border p-3">
-      {bookmark.favicon_url && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={bookmark.favicon_url}
-          alt=""
-          width={16}
-          height={16}
-          className="mt-0.5 shrink-0 object-contain"
-        />
-      )}
+      {favicon}
       <div className="min-w-0 flex-1 space-y-0.5">
         <a
           href={bookmark.url}
@@ -172,7 +197,59 @@ export function BookmarkCard({ bookmark }: { bookmark: Bookmark }) {
         {bookmark.description && (
           <p className="text-xs text-muted-foreground line-clamp-2">{bookmark.description}</p>
         )}
+
+        {/* Tags row */}
+        <div className="flex flex-wrap items-center gap-1 pt-1">
+          {tags.map((tag) => (
+            <span
+              key={tag.id}
+              className="inline-flex items-center gap-0.5 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+            >
+              {tag.name}
+              <button
+                type="button"
+                onClick={() => handleRemoveTag(tag.id)}
+                disabled={isTagPending}
+                className="ml-0.5 leading-none hover:text-destructive disabled:opacity-50"
+                aria-label={`Remove tag ${tag.name}`}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+
+          {addingTag ? (
+            <input
+              type="text"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); handleAddTag() }
+                if (e.key === 'Escape') { setTagInput(''); setAddingTag(false) }
+              }}
+              onBlur={() => {
+                if (tagInput.trim()) handleAddTag()
+                else setAddingTag(false)
+              }}
+              maxLength={50}
+              placeholder="tag name"
+              disabled={isTagPending}
+              autoFocus
+              className="h-5 w-24 rounded-full border border-input bg-background px-2 text-xs outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAddingTag(true)}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              + Add tag
+            </button>
+          )}
+        </div>
+        {tagError && <p className="text-xs text-destructive">{tagError}</p>}
       </div>
+
       <div className="flex shrink-0 gap-1">
         <Button
           size="sm"
