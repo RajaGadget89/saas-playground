@@ -1,16 +1,18 @@
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { Button } from '@/components/ui/button'
 import { signOut } from './actions'
 import { AddLinkForm } from './add-link-form'
 import { BookmarkList } from './bookmark-list'
 import { TagFilterBar } from './tag-filter-bar'
+import { SearchBar } from './search-bar'
 import type { BookmarkWithTags } from './types'
 
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tag?: string }>
+  searchParams: Promise<{ tag?: string; q?: string }>
 }) {
   const supabase = await createClient()
   const {
@@ -19,7 +21,7 @@ export default async function DashboardPage({
 
   if (!user) redirect('/login')
 
-  const { tag: activeTag } = await searchParams
+  const { tag: activeTag, q } = await searchParams
 
   const { data } = await supabase
     .from('bookmarks')
@@ -28,9 +30,21 @@ export default async function DashboardPage({
 
   const all = (data ?? []) as unknown as BookmarkWithTags[]
 
-  const filtered = activeTag
+  const afterTagFilter = activeTag
     ? all.filter((b) => b.bookmark_tags.some((bt) => bt.tags?.name === activeTag))
     : all
+
+  const filtered = q
+    ? (() => {
+        const lower = q.toLowerCase()
+        return afterTagFilter.filter(
+          (b) =>
+            b.title?.toLowerCase().includes(lower) ||
+            b.url.toLowerCase().includes(lower) ||
+            b.description?.toLowerCase().includes(lower)
+        )
+      })()
+    : afterTagFilter
 
   const allTags = Array.from(
     new Map(
@@ -58,7 +72,11 @@ export default async function DashboardPage({
 
         <AddLinkForm />
 
-        {allTags.length > 0 && <TagFilterBar tags={allTags} activeTag={activeTag} />}
+        <Suspense key={q ?? ''} fallback={<div className="h-9 rounded-md bg-muted animate-pulse" />}>
+          <SearchBar initialQ={q} />
+        </Suspense>
+
+        {allTags.length > 0 && <TagFilterBar tags={allTags} activeTag={activeTag} q={q} />}
 
         <BookmarkList bookmarks={filtered} activeTag={activeTag} />
       </div>
