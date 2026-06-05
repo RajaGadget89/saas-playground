@@ -40,6 +40,7 @@ Single-user per account — every user sees only their own data.
 - `npm run dev` — local dev server
 - `npm run build` — production build (must pass — fails on type errors)
 - `npm run lint` — ESLint
+- `npm run test:e2e` — Playwright e2e smoke suite (requires TEST_USER_EMAIL / TEST_USER_PASSWORD / E2E_SECRET in .env.local)
 - `npx supabase db push` — apply migrations to the linked project
 
 ## Workflow Rules
