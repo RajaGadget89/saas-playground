@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/sharepoint/Documents/Claudy/saas-playground && npm run lint && npx tsc --noEmit",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}
